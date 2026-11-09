@@ -146,9 +146,17 @@ async function fallbackCacheName() {
 }
 
 async function cachedIndex(cacheName) {
-  return (await caches.open(cacheName)).match(INDEX_URL, {
+  const response = await (await caches.open(cacheName)).match(INDEX_URL, {
     ignoreSearch: true,
     ignoreVary: true
+  });
+
+  if (!response) return undefined;
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers
   });
 }
 
