@@ -19,6 +19,7 @@ function isRuntimeFile(file) {
   return file !== 'sw.js' &&
     file !== 'CNAME' &&
     file !== '404.html' &&
+    file !== 'index.html' &&
     !file.startsWith('.vite/') &&
     !file.startsWith('data/') &&
     !file.endsWith('/index.html') &&
@@ -83,6 +84,7 @@ const SHELL = ${JSON.stringify(revisions.map(([file, revision]) => ({
 })))};
 const STATE_KEY = new URL('./__armorer_state__', self.registration.scope).href;
 const INDEX_URL = new URL('./index.html', self.registration.scope).href;
+const HOME_URL = self.registration.scope;
 const ROLLBACK_DELAY = 30_000;
 
 function versionedRequest(entry) {
@@ -105,9 +107,10 @@ async function responseMatchesRevision(response, revision) {
 async function readState(cacheName = CACHE_NAME) {
   const response = await (await caches.open(cacheName)).match(STATE_KEY);
   if (!response) return undefined;
+
   try {
     return await response.json();
-  } catch (error) {
+  } catch {
     return undefined;
   }
 }
@@ -145,12 +148,7 @@ async function fallbackCacheName() {
   )?.name;
 }
 
-async function cachedIndex(cacheName) {
-  const response = await (await caches.open(cacheName)).match(INDEX_URL, {
-    ignoreSearch: true,
-    ignoreVary: true
-  });
-
+function navigationResponse(response) {
   if (!response) return undefined;
 
   return new Response(response.body, {
@@ -158,6 +156,22 @@ async function cachedIndex(cacheName) {
     statusText: response.statusText,
     headers: response.headers
   });
+}
+
+async function cachedIndex(cacheName) {
+  const cache = await caches.open(cacheName);
+
+  const response =
+    await cache.match(INDEX_URL, {
+      ignoreSearch: true,
+      ignoreVary: true
+    }) ||
+    await cache.match(HOME_URL, {
+      ignoreSearch: true,
+      ignoreVary: true
+    });
+
+  return navigationResponse(response);
 }
 
 self.addEventListener('install', (event) => {
@@ -197,6 +211,29 @@ self.addEventListener('install', (event) => {
       responses.map(([cacheKey, response]) =>
         cache.put(cacheKey, response)
       )
+    );
+
+    // Cloudflare Pages may redirect /index.html to /.
+    // Fetch the canonical homepage and store a non-redirected copy
+    // under the index.html cache key used by offline navigation.
+    const homepage = await fetch(HOME_URL, { cache: 'reload' });
+
+    if (!homepage.ok) {
+      throw new Error('Failed to cache homepage');
+    }
+
+    const html = await homepage.text();
+
+    if (!html.includes(BUILD_ID)) {
+      throw new Error('Homepage build ID does not match');
+    }
+
+    await cache.put(
+      INDEX_URL,
+      new Response(html, {
+        status: 200,
+        headers: { 'content-type': 'text/html; charset=utf-8' }
+      })
     );
 
     if (!await readState()) {
@@ -273,7 +310,7 @@ self.addEventListener('fetch', (event) => {
         }
 
         return response;
-      } catch (error) {
+      } catch {
         return (
           await cache.match(event.request, {
             ignoreSearch: true,
