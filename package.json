@@ -1,9 +1,10 @@
+
 {
-  "name": "armorer",
+  "name": "arc-logos-holy-bible",
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "An offline-first, minimal scripture reader",
+  "description": "The Holy Bible — an offline-first King James Version Bible reader by Arc.Logos",
   "scripts": {
     "prepare:data": "node scripts/build-translation.mjs",
     "dev": "npm run prepare:data && vite",
@@ -18,14 +19,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/glitchassassin/armorer.git"
+    "url": "git+https://github.com/TheBigArk/armorer.git"
   },
-  "author": "Jon Winsley",
+  "author": "Arc.Logos",
   "license": "SEE LICENSE IN LICENSE",
   "bugs": {
-    "url": "https://github.com/glitchassassin/armorer/issues"
+    "url": "https://github.com/TheBigArk/armorer/issues"
   },
-  "homepage": "https://github.com/glitchassassin/armorer#readme",
+  "homepage": "https://thefreeholybible.com",
   "dependencies": {
     "minisearch": "^7.2.0",
     "porter-stemmer": "^0.9.1",
