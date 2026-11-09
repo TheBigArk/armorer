@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
@@ -158,11 +159,16 @@ self.addEventListener('fetch', (event) => {
       const fallback = await fallbackCacheName();
       if (fallback && state.status === 'rollback') return (await cachedIndex(fallback)) || Response.error();
       if (fallback && state.status !== 'healthy') {
-        if (state.attempts > 0 && Date.now() - state.attemptedAt >= ROLLBACK_DELAY) {
+        // Give the newly activated build two navigation opportunities to report
+        // APP_HEALTHY before rolling back. An old open tab may still be running
+        // the previous build and cannot confirm the new build's ID.
+        if (state.attempts >= 2 && Date.now() - state.attemptedAt >= ROLLBACK_DELAY) {
           await writeState({ ...state, status: 'rollback' });
           return (await cachedIndex(fallback)) || Response.error();
         }
-        if (state.attempts === 0) await writeState({ ...state, attempts: 1, attemptedAt: Date.now() });
+        if (state.attempts < 2) {
+          await writeState({ ...state, attempts: state.attempts + 1, attemptedAt: Date.now() });
+        }
       }
       return (await cachedIndex(CACHE_NAME)) || Response.error();
     })());
