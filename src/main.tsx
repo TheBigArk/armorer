@@ -8,48 +8,14 @@ import './styles.css';
 
 const initialMetadata = __ARMORER_PRERENDER_METADATA__ ?? undefined;
 
-hydrate(
-  <App initialMetadata={initialMetadata} />,
-  typeof document === 'undefined'
-    ? undefined
-    : document.getElementById('app')!
-);
+hydrate(<App initialMetadata={initialMetadata} />, typeof document === 'undefined' ? undefined : document.getElementById('app')!);
 
-if (
-  typeof navigator !== 'undefined' &&
-  'serviceWorker' in navigator &&
-  import.meta.env.PROD
-) {
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register(
-      `${import.meta.env.BASE_URL}sw.js`,
-      {
-        scope: import.meta.env.BASE_URL,
-        updateViaCache: 'none'
-      }
-    ).then((registration) => {
-      const checkForUpdates = () => {
-        if (!navigator.onLine) return;
-
-        void registration.update().catch((error) => {
-          console.warn('Offline update check failed', error);
-        });
-      };
-
-      checkForUpdates();
-
-      window.addEventListener('focus', checkForUpdates);
-
-      window.addEventListener('online', checkForUpdates);
-
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          checkForUpdates();
-        }
-      });
-    }).catch((error) => {
-      console.error('Offline startup could not be installed', error);
-    });
+    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
+      scope: import.meta.env.BASE_URL,
+      updateViaCache: 'none'
+    }).catch((error) => console.error('Offline startup could not be installed', error));
   });
 }
 
@@ -60,7 +26,6 @@ export async function prerender({ url }: { ssr: true; url: string }) {
   const result = await renderToString(<App initialMetadata={initialMetadata} />);
   const slug = url.split('/').filter(Boolean)[0];
   const book = initialMetadata.books.find((candidate) => candidate.slug === slug);
-
   return {
     html: result.html,
     links: new Set<string>(),
