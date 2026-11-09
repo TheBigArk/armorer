@@ -1,3 +1,4 @@
+
 import { ErrorBoundary, LocationProvider, Route, Router, useLocation } from 'preact-iso';
 import { useEffect } from 'preact/hooks';
 import { AppBootstrap, useApp } from './app-context';
@@ -48,7 +49,33 @@ function AppLayout() {
           </Router>
         </div>
       )}
+      <SiteFooter />
     </div>
+  );
+}
+
+function SiteFooter() {
+  const year = new Date().getFullYear();
+
+  return (
+    <footer class="site-footer" style={{
+      padding: '16px',
+      textAlign: 'center',
+      fontSize: '13px',
+      lineHeight: '1.8'
+    }}>
+      <div>King James Version (1769) · Public Domain</div>
+      <nav aria-label="Footer links">
+        <a href="/sitemap.xml">Sitemap</a>
+        {' · '}
+        <a href="https://sites.google.com/view/the-free-holy-bible-privacy/">
+          Privacy Policy
+        </a>
+        {' · '}
+        <a href="/contact/">Contact</a>
+      </nav>
+      <div>© {year} The Holy Bible</div>
+    </footer>
   );
 }
 
