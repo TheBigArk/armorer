@@ -1,3 +1,4 @@
+
 import { createContext, type ComponentChildren } from 'preact';
 import { useContext, useEffect, useMemo, useState } from 'preact/hooks';
 import { ContentRepository, Synchronizer } from './lib/content-repository';
@@ -52,31 +53,57 @@ export function AppBootstrap({ children, initialMetadata }: {
       setShellReady(true);
       return;
     }
+
     if (!('serviceWorker' in navigator) || !('caches' in window)) return;
+
     let active = true;
+
     const checkShell = async () => {
       let ready = false;
+
       try {
-        const buildId = document.querySelector<HTMLMetaElement>('meta[name="armorer-build"]')?.content;
-        const script = document.querySelector<HTMLScriptElement>('script[type="module"]');
-        const cacheName = `armorer-app-${buildId}`;
-        if (buildId && script?.src && navigator.serviceWorker.controller &&
-          (await caches.keys()).includes(cacheName)) {
-          const cache = await caches.open(cacheName);
-          const indexUrl = new URL('index.html', new URL(import.meta.env.BASE_URL, location.origin));
-          const matchOptions = { ignoreSearch: true, ignoreVary: true };
-          ready = Boolean(await cache.match(indexUrl.href, matchOptions) &&
-            await cache.match(script.src, matchOptions));
+        const buildId = document.querySelector<HTMLMetaElement>(
+          'meta[name="armorer-build"]'
+        )?.content;
+
+        if (buildId) {
+          const cacheName = `armorer-app-${buildId}`;
+          const cacheNames = await caches.keys();
+
+          if (cacheNames.includes(cacheName)) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            const worker = navigator.serviceWorker.controller ??
+              registration?.active;
+
+            if (worker?.state === 'activated') {
+              const cache = await caches.open(cacheName);
+              const indexUrl = new URL(
+                'index.html',
+                new URL(import.meta.env.BASE_URL, location.origin)
+              );
+
+              const cachedIndex = await cache.match(indexUrl.href, {
+                ignoreSearch: true,
+                ignoreVary: true
+              });
+
+              ready = Boolean(cachedIndex);
+            }
+          }
         }
       } catch {
-        // Missing or inaccessible startup files must not be reported as available offline.
+        // Do not report offline startup as ready when verification fails.
       }
+
       if (active) setShellReady(ready);
     };
+
     void checkShell();
     void navigator.serviceWorker.ready.then(checkShell);
+
     navigator.serviceWorker.addEventListener('controllerchange', checkShell);
     window.addEventListener('pageshow', checkShell);
+
     return () => {
       active = false;
       navigator.serviceWorker.removeEventListener('controllerchange', checkShell);
@@ -86,28 +113,42 @@ export function AppBootstrap({ children, initialMetadata }: {
 
   useEffect(() => {
     let active = true;
+
     ContentRepository.open().then((nextRepository) => {
       if (!active) return;
+
       const nextSynchronizer = new Synchronizer(nextRepository);
       setRepository(nextRepository);
       setManifest(nextRepository.manifest);
       setSynchronizer(nextSynchronizer);
-      nextRepository.addEventListener('manifest-activated', () => setManifest(nextRepository.manifest));
+
+      nextRepository.addEventListener('manifest-activated', () =>
+        setManifest(nextRepository.manifest)
+      );
+
       const begin = () => nextSynchronizer.start();
       const scheduleIdle = window.requestIdleCallback;
+
       if (scheduleIdle) scheduleIdle(begin, { timeout: 1200 });
       else globalThis.setTimeout(begin, 300);
     }).catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason : new Error(String(reason)));
+      if (active) {
+        setError(reason instanceof Error ? reason : new Error(String(reason)));
+      }
     });
+
     return () => { active = false; };
   }, []);
 
   useEffect(() => synchronizer?.subscribe(setStatus), [synchronizer]);
 
-  const displayedStatus = useMemo<OfflineStatus>(() => status.kind === 'available' && !shellReady
-    ? { ...status, kind: 'incomplete', label: 'Offline startup not ready' }
-    : status, [status, shellReady]);
+  const displayedStatus = useMemo<OfflineStatus>(
+    () => status.kind === 'available' && !shellReady
+      ? { ...status, kind: 'incomplete', label: 'Offline startup not ready' }
+      : status,
+    [status, shellReady]
+  );
+
   const value = useMemo<AppContextValue | undefined>(() => manifest ? {
     repository,
     synchronizer,
@@ -127,6 +168,10 @@ export function AppBootstrap({ children, initialMetadata }: {
       </main>
     );
   }
-  if (!value) return <div class="initial-loading" role="status" aria-label="Loading Armorer" />;
+
+  if (!value) {
+    return <div class="initial-loading" role="status" aria-label="Loading Armorer" />;
+  }
+
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
