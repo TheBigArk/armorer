@@ -28,6 +28,7 @@ function AppLayout() {
   const { manifest, ready } = useApp();
   const query = location.query.q ?? '';
   const routeBase = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
+
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     void navigator.serviceWorker.ready.then((registration) => {
@@ -35,6 +36,9 @@ function AppLayout() {
       (navigator.serviceWorker.controller ?? registration.active)?.postMessage({ type: 'APP_HEALTHY', buildId });
     });
   }, []);
+
+  const isHomePage = location.path === '/' || location.path === `${routeBase}/`;
+
   return (
     <div class="site-wrapper">
       <Header />
@@ -49,7 +53,7 @@ function AppLayout() {
           </Router>
         </div>
       )}
-      <SiteFooter />
+      {!query && isHomePage && <SiteFooter />}
     </div>
   );
 }
