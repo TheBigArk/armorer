@@ -16,15 +16,18 @@ async function filesIn(directory) {
 }
 
 function isRuntimeFile(file) {
-  return file !== 'sw.js' && file !== 'CNAME' &&
-    !file.startsWith('.vite/') && !file.startsWith('data/') &&
+  return file !== 'sw.js' &&
+    file !== 'CNAME' &&
+    file !== '404.html' &&
+    !file.startsWith('.vite/') &&
+    !file.startsWith('data/') &&
     !file.endsWith('/index.html') &&
     !/^assets\/prerender-.*\.js$/.test(file);
 }
 
 const shellFileNames = (await filesIn(dist))
   .map((file) => relative(dist, file).split(sep).join('/'))
-  .filter((file) => file !== '404.html' && isRuntimeFile(file));
+  .filter(isRuntimeFile);
 
 const buildInputs = await Promise.all(shellFileNames.map(async (file) => {
   const bytes = await readFile(resolve(dist, file));
