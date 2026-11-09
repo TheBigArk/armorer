@@ -31,10 +31,62 @@ function AppLayout() {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-    void navigator.serviceWorker.ready.then((registration) => {
-      const buildId = document.querySelector<HTMLMetaElement>('meta[name="armorer-build"]')?.content;
-      (navigator.serviceWorker.controller ?? registration.active)?.postMessage({ type: 'APP_HEALTHY', buildId });
+
+    let cancelled = false;
+
+    const confirmHealthy = () => {
+      if (cancelled) return;
+
+      const buildId = document.querySelector<HTMLMetaElement>(
+        'meta[name="armorer-build"]'
+      )?.content;
+
+      if (!buildId) return;
+
+      const controller = navigator.serviceWorker.controller;
+      if (!controller) return;
+
+      controller.postMessage({
+        type: 'APP_HEALTHY',
+        buildId
+      });
+    };
+
+    void navigator.serviceWorker.ready.then(() => {
+      confirmHealthy();
+    }).catch((error) => {
+      console.warn('Offline health confirmation failed', error);
     });
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        confirmHealthy();
+      }
+    };
+
+    navigator.serviceWorker.addEventListener(
+      'controllerchange',
+      confirmHealthy
+    );
+
+    document.addEventListener(
+      'visibilitychange',
+      onVisibilityChange
+    );
+
+    return () => {
+      cancelled = true;
+
+      navigator.serviceWorker.removeEventListener(
+        'controllerchange',
+        confirmHealthy
+      );
+
+      document.removeEventListener(
+        'visibilitychange',
+        onVisibilityChange
+      );
+    };
   }, []);
 
   return (
